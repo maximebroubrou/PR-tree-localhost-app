@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PR Tree</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header class="page-header">
+      <div class="title-row">
+        <h1>Open PR Tree</h1>
+      </div>
+
+      <div class="controls">
+        <label class="field">
+          <span class="field-label">Search query</span>
+          <input id="query-input" type="text" spellcheck="false" />
+        </label>
+
+        <div class="field assignee-field">
+          <span class="field-label">Assignee</span>
+          <details id="assignee-picker">
+            <summary id="assignee-summary">Anyone</summary>
+            <div class="assignee-panel">
+              <input
+                id="assignee-search"
+                type="text"
+                placeholder="Filter members…"
+                autocomplete="off"
+              />
+              <div id="assignee-list" class="assignee-list">
+                <p class="assignee-loading">Loading org members…</p>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <button id="refresh-btn" type="button">Search</button>
+      </div>
+
+      <p id="meta" class="meta"></p>
+    </header>
+
+    <main id="content">
+      <p id="status" class="status">Loading…</p>
+      <div id="tree-root"></div>
+    </main>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

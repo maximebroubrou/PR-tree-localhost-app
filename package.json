@@ -1,0 +1,12 @@
+{
+  "name": "pr-tree-localhost-app",
+  "version": "1.0.0",
+  "description": "Local overview of open GitHub PRs and the branch/PR tree they depend on.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.6.0"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}
