@@ -17,6 +17,9 @@
   --error-bg: #ffebe9;
   --error-fg: #82071e;
   --error-border: #ffc1ba;
+
+  --changes-fg: #cf222e;
+  --changes-bg: #ffebe9;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -39,6 +42,9 @@
     --error-bg: #2d1214;
     --error-fg: #ff9492;
     --error-border: #6e2c29;
+
+    --changes-fg: #ff8182;
+    --changes-bg: #2d1214;
   }
 }
 
@@ -320,6 +326,28 @@ ul.tree ul.tree > li::before {
 .pr-number {
   color: var(--muted);
   font-weight: 400;
+}
+
+.review-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+}
+
+.review-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.review-badge.approved .review-icon {
+  color: var(--open-fg);
+}
+
+.review-badge.changes_requested .review-icon {
+  color: var(--changes-fg);
+}
+
+.review-badge.review_required .review-icon {
+  color: var(--muted);
 }
 
 .pr-branch {

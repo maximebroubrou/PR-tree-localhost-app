@@ -46,6 +46,7 @@ const GRAPHQL_QUERY = `
           isDraft
           headRefName
           baseRefName
+          reviewDecision
           repository { nameWithOwner }
           mergeQueueEntry { id }
         }
@@ -84,12 +85,19 @@ export function buildForest(prs) {
   return [...trunks.entries()].map(([trunk, roots]) => ({ trunk, roots }));
 }
 
-function requireToken() {
+function requireConfig() {
   if (!GITHUB_TOKEN) {
     const err = new Error(
       "Missing GITHUB_TOKEN. Copy .env.example to .env and add a GitHub personal access token.",
     );
     err.code = "NO_TOKEN";
+    throw err;
+  }
+  if (!GITHUB_OWNER || !GITHUB_REPO) {
+    const err = new Error(
+      "Missing GITHUB_OWNER / GITHUB_REPO. Set them in your .env file.",
+    );
+    err.code = "NO_REPO_CONFIG";
     throw err;
   }
 }
@@ -101,7 +109,7 @@ export function buildSearchQuery(userQuery, assignee) {
 }
 
 export async function fetchPullRequests(userQuery, assignee = "") {
-  requireToken();
+  requireConfig();
 
   const searchQuery = buildSearchQuery(userQuery, assignee);
 
@@ -130,13 +138,14 @@ export async function fetchPullRequests(userQuery, assignee = "") {
     headRefName: n.headRefName,
     baseRefName: n.baseRefName,
     status: n.mergeQueueEntry ? "queued" : n.isDraft ? "draft" : "open",
+    reviewDecision: n.reviewDecision ? n.reviewDecision.toLowerCase() : null,
   }));
 }
 
 const MAX_MEMBER_PAGES = 5; // caps at 500 members
 
 export async function fetchOrgMembers() {
-  requireToken();
+  requireConfig();
 
   const members = [];
   for (let page = 1; page <= MAX_MEMBER_PAGES; page++) {
@@ -240,7 +249,8 @@ const server = http.createServer(async (req, res) => {
     }
 
     console.error(err);
-    res.writeHead(err.code === "NO_TOKEN" ? 400 : 500, {
+    const clientErrorCodes = new Set(["NO_TOKEN", "NO_REPO_CONFIG"]);
+    res.writeHead(clientErrorCodes.has(err.code) ? 400 : 500, {
       "Content-Type": "application/json; charset=utf-8",
     });
     res.end(JSON.stringify({ error: err.message, code: err.code || null }));

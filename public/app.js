@@ -20,11 +20,41 @@ function prIconSvg(status) {
   `;
 }
 
+const REVIEW_LABEL = {
+  approved: 'Approved',
+  changes_requested: 'Changes requested',
+  review_required: 'Review required',
+};
+
+// Small stroke-based badge showing where review sits, independent of the PR's
+// own open/draft/queued status icon. Omitted entirely when GitHub has no
+// review decision for the PR (e.g. no reviewers requested).
+function reviewIconSvg(reviewDecision) {
+  if (!reviewDecision) return '';
+
+  const shapesByDecision = {
+    approved: '<path d="M5.2 8.2l2 2 3.6-4" />',
+    changes_requested: '<path d="M8 5.2v3.2" /><circle cx="8" cy="11" r="0.6" fill="currentColor" stroke="none" />',
+    review_required: '',
+  };
+  const dashed = reviewDecision === 'review_required' ? ' stroke-dasharray="2 2"' : '';
+
+  return `
+    <span class="review-badge ${reviewDecision}" title="${escapeAttr(REVIEW_LABEL[reviewDecision] || reviewDecision)}">
+      <svg class="review-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="8" cy="8" r="6.5"${dashed} />
+        ${shapesByDecision[reviewDecision] || ''}
+      </svg>
+    </span>
+  `;
+}
+
 function renderPrCard(pr) {
   return `
     <a class="pr-card" href="${escapeAttr(pr.url)}" target="_blank" rel="noopener noreferrer">
       ${prIconSvg(pr.status)}
       <span class="pr-title">${escapeHtml(pr.title)} <span class="pr-number">#${pr.number}</span></span>
+      ${reviewIconSvg(pr.reviewDecision)}
       <span class="pr-badge ${pr.status}">${STATUS_LABEL[pr.status] || pr.status}</span>
       <span class="pr-branch">${escapeHtml(pr.headRefName)}</span>
     </a>
