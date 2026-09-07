@@ -10,42 +10,77 @@
     <header class="page-header">
       <div class="title-row">
         <h1>Open PR Tree</h1>
-      </div>
 
-      <div class="controls">
-        <label class="field">
-          <span class="field-label">Search query</span>
-          <input id="query-input" type="text" spellcheck="false" />
-        </label>
+        <div class="query-controls">
+          <label class="field query-field">
+            <span class="field-label">Search query</span>
+            <input id="query-input" type="text" spellcheck="false" />
+          </label>
 
-        <div class="field assignee-field">
-          <span class="field-label">Assignee</span>
-          <details id="assignee-picker">
-            <summary id="assignee-summary">Anyone</summary>
-            <div class="assignee-panel">
-              <input
-                id="assignee-search"
-                type="text"
-                placeholder="Filter members…"
-                autocomplete="off"
-              />
-              <div id="assignee-list" class="assignee-list">
-                <p class="assignee-loading">Loading org members…</p>
-              </div>
-            </div>
-          </details>
+          <button id="refresh-btn" type="button">Search</button>
         </div>
-
-        <button id="refresh-btn" type="button">Search</button>
       </div>
 
       <p id="meta" class="meta"></p>
     </header>
 
-    <main id="content">
-      <p id="status" class="status">Loading…</p>
-      <div id="tree-root"></div>
-    </main>
+    <hr class="header-divider" />
+
+    <div class="panels">
+      <section class="panel panel-mine">
+        <div class="panel-controls">
+          <div class="field assignee-field">
+            <span class="field-label">Assignee</span>
+            <details id="assignee-picker">
+              <summary id="assignee-summary">Anyone</summary>
+              <div class="assignee-panel">
+                <input
+                  id="assignee-search"
+                  type="text"
+                  placeholder="Filter members…"
+                  autocomplete="off"
+                />
+                <div id="assignee-list" class="assignee-list">
+                  <p class="assignee-loading">Loading org members…</p>
+                </div>
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <main id="content">
+          <div id="assignee-header" class="colleague-header">Anyone</div>
+          <p id="status" class="status">Loading…</p>
+          <div id="tree-root"></div>
+        </main>
+      </section>
+
+      <section class="panel panel-colleagues">
+        <div class="panel-controls">
+          <div class="field colleagues-field">
+            <span class="field-label">Colleagues (up to 4)</span>
+            <details id="colleagues-picker">
+              <summary id="colleagues-summary">None selected</summary>
+              <div class="assignee-panel">
+                <input
+                  id="colleagues-search"
+                  type="text"
+                  placeholder="Filter members…"
+                  autocomplete="off"
+                />
+                <div id="colleagues-list" class="assignee-list">
+                  <p class="assignee-loading">Loading org members…</p>
+                </div>
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <div id="colleagues-root" class="colleagues-root">
+          <p class="status">Select up to 4 colleagues to see their PRs.</p>
+        </div>
+      </section>
+    </div>
 
     <script src="/app.js" type="module"></script>
   </body>

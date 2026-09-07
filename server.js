@@ -14,7 +14,7 @@ const PORT = Number(process.env.PORT) || 8030;
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || "";
 const GITHUB_OWNER = process.env.GITHUB_OWNER || "";
 const GITHUB_REPO = process.env.GITHUB_REPO || "";
-const DEFAULT_QUERY = 'is:open is:pr -label:"For next sprint"';
+const DEFAULT_QUERY = `repo:${GITHUB_OWNER}/${GITHUB_REPO} is:open is:pr -label:"For next sprint"`;
 const DEFAULT_ASSIGNEE = process.env.GITHUB_DEFAULT_ASSIGNEE || "";
 const OPEN_BROWSER = process.env.OPEN_BROWSER !== "false";
 
@@ -105,7 +105,7 @@ function requireConfig() {
 export function buildSearchQuery(userQuery, assignee) {
   const trimmed = (userQuery || "").trim() || DEFAULT_QUERY;
   const assigneeClause = assignee ? ` assignee:${assignee}` : "";
-  return `repo:${GITHUB_OWNER}/${GITHUB_REPO} ${trimmed}${assigneeClause}`;
+  return `${trimmed}${assigneeClause}`;
 }
 
 export async function fetchPullRequests(userQuery, assignee = "") {
@@ -135,11 +135,57 @@ export async function fetchPullRequests(userQuery, assignee = "") {
     number: n.number,
     title: n.title,
     url: n.url,
+    repo: n.repository.nameWithOwner,
     headRefName: n.headRefName,
     baseRefName: n.baseRefName,
     status: n.mergeQueueEntry ? "queued" : n.isDraft ? "draft" : "open",
     reviewDecision: n.reviewDecision ? n.reviewDecision.toLowerCase() : null,
   }));
+}
+
+// GitHub notification reasons worth surfacing as a badge: being @mentioned,
+// someone replying on a thread you're in, or a review request landing on you.
+const NOTIFY_REASONS = new Set([
+  "mention",
+  "team_mention",
+  "comment",
+  "review_requested",
+]);
+
+// Reuses GitHub's own notification/read state (the same one behind
+// github.com's bell icon) instead of tracking read/unread ourselves — opening
+// a PR in the browser marks it read on GitHub's side, so the badge clears on
+// the next refresh with no local state to keep in sync.
+export async function fetchMentionNotifications() {
+  requireConfig();
+
+  const response = await fetch(
+    "https://api.github.com/notifications?participating=true&per_page=100",
+    {
+      headers: {
+        Authorization: `Bearer ${GITHUB_TOKEN}`,
+        "User-Agent": "pr-tree-localhost-app",
+      },
+    },
+  );
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(
+      `GitHub API error listing notifications: ${body.message || response.statusText}`,
+    );
+  }
+
+  const threads = await response.json();
+
+  return threads
+    .filter(
+      (t) => t.subject.type === "PullRequest" && NOTIFY_REASONS.has(t.reason),
+    )
+    .map((t) => ({
+      repo: t.repository.full_name,
+      number: Number(t.subject.url.split("/").pop()),
+    }));
 }
 
 const MAX_MEMBER_PAGES = 5; // caps at 500 members
@@ -220,6 +266,13 @@ const server = http.createServer(async (req, res) => {
       const members = await fetchOrgMembers();
       res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
       res.end(JSON.stringify({ members }));
+      return;
+    }
+
+    if (url.pathname === "/api/mentions") {
+      const mentions = await fetchMentionNotifications();
+      res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ mentions }));
       return;
     }
 
