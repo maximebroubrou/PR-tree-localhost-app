@@ -1,7 +1,10 @@
 # PR tree visualiser
 
-<img width="1940" height="1264" alt="image" src="https://github.com/user-attachments/assets/f36536a2-9fba-4300-8b28-dca57ff4ecdf" />
+<img width="3450" height="1714" alt="image" src="https://github.com/user-attachments/assets/7f37689e-e118-48e1-8b4a-f50294f54d75" />
 
+### And when there are feature branches:
+
+<img width="1940" height="1264" alt="image" src="https://github.com/user-attachments/assets/f36536a2-9fba-4300-8b28-dca57ff4ecdf" />
 
 ## Auth
 
