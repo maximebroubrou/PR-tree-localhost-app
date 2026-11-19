@@ -27,6 +27,23 @@ node server.js
 ```
 (or npm start) then open http://localhost:8030
 
+## Share a tree on Slack
+
+Each person's tree (yours and each colleague's) has a **📋 Copy for Slack** button. It copies the tree as text, with each PR written as `[PR Title](link)`:
+
+```
+🌳 PR tree · @someone
+
+🌱 main
+ |── 🟢 [Parent PR](https://github.com/<owner>/<repo>/pull/1) ✅
+│       |── 📝 [Child PR](https://github.com/<owner>/<repo>/pull/2) 👀
+│      │      └── 🚂 [Grandchild PR](https://github.com/<owner>/<repo>/pull/3)
+│      └── 🟢 [Other child](https://github.com/<owner>/<repo>/pull/4)
+└── 🟢 [Another root](https://github.com/<owner>/<repo>/pull/5) 🔁
+```
+
+For the links to show up as links in Slack, turn on *Preferences → Advanced → Format messages with markup*.
+
 ## Tips
 
 Launch it with a quick command in your terminal.

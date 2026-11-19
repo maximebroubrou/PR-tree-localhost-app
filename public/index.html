@@ -49,7 +49,12 @@
         </div>
 
         <main id="content">
-          <div id="assignee-header" class="colleague-header">Anyone</div>
+          <div class="header-row">
+            <div id="assignee-header" class="colleague-header">Anyone</div>
+            <button id="copy-mine-btn" class="copy-slack-btn" type="button" disabled title="Copy this tree as a Slack message">
+              📋 Copy for Slack
+            </button>
+          </div>
           <p id="status" class="status">Loading…</p>
           <div id="tree-root"></div>
         </main>
