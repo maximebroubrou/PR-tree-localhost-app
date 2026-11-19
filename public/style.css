@@ -313,6 +313,49 @@ h1 {
   margin-bottom: 10px;
 }
 
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.header-row .colleague-header {
+  margin-bottom: 0;
+}
+
+.copy-slack-btn {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.copy-slack-btn:hover:not(:disabled) {
+  background: var(--card-hover);
+  color: var(--fg);
+}
+
+.copy-slack-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.copy-slack-btn.copied {
+  color: var(--open-fg);
+  border-color: var(--open-fg);
+}
+
+.copy-slack-btn.failed {
+  color: var(--changes-fg);
+  border-color: var(--changes-fg);
+}
+
 @media (max-width: 800px) {
   .panels {
     flex-direction: column;

@@ -111,6 +111,122 @@ function renderForest(forest) {
     .join('');
 }
 
+// ---------------------------------------------------------------------------
+// Slack export
+//
+// Turns a forest into a plain-text tree that pastes nicely into Slack:
+//
+//   🌳 PR tree · @someone
+//
+//   🌱 main
+//    |── 🟢 [Parent PR](https://…) ✅
+//   │       |── 📝 [Child PR](https://…) 👀
+//   │      │      └── 🚂 [Grandchild PR](https://…)
+//   │      └── 🟢 [Other child](https://…)
+//   └── 🟢 [Another root](https://…) 🔁
+//
+// See SLACK_INDENT_* below for how indentation survives Slack's rendering.
+// ---------------------------------------------------------------------------
+
+const SLACK_STATUS_EMOJI = {
+  open: '🟢',
+  draft: '📝',
+  queued: '🚂',
+};
+
+const SLACK_REVIEW_EMOJI = {
+  approved: '✅',
+  changes_requested: '🔁',
+  review_required: '👀',
+};
+
+const SLACK_LEGEND = [
+  ['status', 'open', '🟢 open'],
+  ['status', 'draft', '📝 draft'],
+  ['status', 'queued', '🚂 merge queue'],
+  ['review', 'approved', '✅ approved'],
+  ['review', 'changes_requested', '🔁 changes requested'],
+  ['review', 'review_required', '👀 review needed'],
+];
+
+// Slack renders messages in a proportional font and trims/collapses plain and
+// typographic spaces, which glued the "│" guides onto the "├─" connectors.
+// Non-breaking spaces (U+00A0) are kept as-is, so we use runs of them to give
+// each tree level a clear, consistent gap.
+const NBSP = '\u00A0';
+// "├" renders poorly in Slack's font, so mid branches use an ASCII "|" instead,
+// with a leading space to line it up with the wider "└" of last branches.
+const SLACK_BRANCH_MID = `${NBSP}|──${NBSP}`;
+const SLACK_BRANCH_LAST = `└──${NBSP}`;
+const SLACK_INDENT_PIPE = `│${NBSP.repeat(6)}`;
+const SLACK_INDENT_BLANK = NBSP.repeat(8);
+
+// Square brackets in a title would break the [text](url) markdown link.
+function slackLinkText(title) {
+  return String(title).replace(/\[/g, '(').replace(/\]/g, ')').replace(/\s+/g, ' ').trim();
+}
+
+function slackPrLine(pr, used) {
+  used.status.add(pr.status);
+  if (pr.reviewDecision) used.review.add(pr.reviewDecision);
+
+  const status = SLACK_STATUS_EMOJI[pr.status] || '⚪';
+  const review = pr.reviewDecision ? ` ${SLACK_REVIEW_EMOJI[pr.reviewDecision] || ''}` : '';
+  return `${status} [${slackLinkText(pr.title)}](${pr.url})${review}`.trimEnd();
+}
+
+function slackNodeLines(pr, prefix, isLast, used) {
+  const branch = isLast ? SLACK_BRANCH_LAST : SLACK_BRANCH_MID;
+  const lines = [`${prefix}${branch}${slackPrLine(pr, used)}`];
+  const childPrefix = prefix + (isLast ? SLACK_INDENT_BLANK : SLACK_INDENT_PIPE);
+  const children = pr.children || [];
+  children.forEach((child, i) => {
+    lines.push(...slackNodeLines(child, childPrefix, i === children.length - 1, used));
+  });
+  return lines;
+}
+
+function forestToSlack(forest, who) {
+  const used = { status: new Set(), review: new Set() };
+  const lines = [`🌳 *PR tree · ${who}*`];
+
+  if (!forest || !forest.length) {
+    lines.push('', '_No open PRs_ 🍃');
+    return lines.join('\n');
+  }
+
+  forest.forEach((group) => {
+    lines.push('', `🌱 \`${group.trunk}\``);
+    group.roots.forEach((root, i) => {
+      lines.push(...slackNodeLines(root, '', i === group.roots.length - 1, used));
+    });
+  });
+
+  const legend = SLACK_LEGEND.filter(([kind, key]) => used[kind].has(key)).map(([, , label]) => label);
+  if (legend.length) {
+    lines.push('', `_${legend.join('  ·  ')}_`);
+  }
+
+  return lines.join('\n');
+}
+
+async function copySlackTree(button, forest, who) {
+  const original = button.textContent;
+  try {
+    await navigator.clipboard.writeText(forestToSlack(forest, who));
+    button.textContent = '✓ Copied';
+    button.classList.add('copied');
+  } catch (err) {
+    console.warn('Could not copy to clipboard:', err);
+    button.textContent = 'Copy failed';
+    button.classList.add('failed');
+  }
+  setTimeout(() => {
+    button.textContent = original;
+    button.classList.remove('copied', 'failed');
+  }, 1500);
+}
+
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({
     '&': '&amp;',
@@ -141,6 +257,7 @@ const colleaguesSummary = document.getElementById('colleagues-summary');
 const colleaguesSearch = document.getElementById('colleagues-search');
 const colleaguesList = document.getElementById('colleagues-list');
 const colleaguesRoot = document.getElementById('colleagues-root');
+const copyMineBtn = document.getElementById('copy-mine-btn');
 
 const LS_QUERY_KEY = 'pr-tree.query';
 const LS_ASSIGNEE_KEY = 'pr-tree.assignee';
@@ -150,6 +267,10 @@ const MAX_COLLEAGUES = 4;
 let allMembers = [];
 let selectedAssignee = '';
 let selectedColleagues = [];
+
+// Last successfully loaded forests, kept around for the "Copy for Slack" buttons.
+let myForest = null;
+const colleagueForests = new Map();
 
 function updateAssigneeSummary() {
   assigneeSummary.textContent = selectedAssignee || 'Anyone';
@@ -289,6 +410,8 @@ async function load() {
   statusEl.style.display = 'block';
   treeRootEl.innerHTML = '';
   metaEl.textContent = '';
+  myForest = null;
+  copyMineBtn.disabled = true;
 
   const params = new URLSearchParams({
     q: queryInput.value.trim(),
@@ -306,6 +429,8 @@ async function load() {
     metaEl.textContent = `Updated ${new Date(data.generatedAt).toLocaleTimeString()}`;
     treeRootEl.innerHTML = renderForest(data.forest);
     statusEl.style.display = 'none';
+    myForest = data.forest;
+    copyMineBtn.disabled = false;
   } catch (err) {
     statusEl.textContent = err.message;
     statusEl.classList.add('error');
@@ -314,6 +439,7 @@ async function load() {
 }
 
 function renderColleaguesSkeleton() {
+  colleagueForests.clear();
   if (!selectedColleagues.length) {
     colleaguesRoot.innerHTML = '<p class="status">Select up to 4 colleagues to see their PRs.</p>';
     return;
@@ -323,7 +449,12 @@ function renderColleaguesSkeleton() {
     .map(
       (login) => `
         <section class="colleague-section" data-login="${escapeAttr(login)}">
-          <div class="colleague-header">@${escapeHtml(login)}</div>
+          <div class="header-row">
+            <div class="colleague-header">@${escapeHtml(login)}</div>
+            <button class="copy-slack-btn" type="button" disabled title="Copy this tree as a Slack message">
+              📋 Copy for Slack
+            </button>
+          </div>
           <p class="status colleague-status">Loading…</p>
           <div class="colleague-tree"></div>
         </section>
@@ -353,6 +484,8 @@ async function loadColleagues() {
         if (!res.ok) throw new Error(data.error || 'Failed to load pull requests.');
         treeEl2.innerHTML = renderForest(data.forest);
         statusEl2.style.display = 'none';
+        colleagueForests.set(login, data.forest);
+        section.querySelector('.copy-slack-btn').disabled = false;
       } catch (err) {
         statusEl2.textContent = err.message;
         statusEl2.classList.add('error');
@@ -393,6 +526,19 @@ colleaguesPicker.addEventListener('toggle', () => {
 
 colleaguesSearch.addEventListener('input', () => {
   renderColleagueOptions(colleaguesSearch.value);
+});
+
+copyMineBtn.addEventListener('click', () => {
+  if (!myForest) return;
+  copySlackTree(copyMineBtn, myForest, selectedAssignee ? `@${selectedAssignee}` : 'everyone');
+});
+
+colleaguesRoot.addEventListener('click', (e) => {
+  const button = e.target.closest('.copy-slack-btn');
+  if (!button) return;
+  const login = button.closest('.colleague-section')?.dataset.login;
+  if (!login || !colleagueForests.has(login)) return;
+  copySlackTree(button, colleagueForests.get(login), `@${login}`);
 });
 
 refreshBtn.addEventListener('click', async () => {
